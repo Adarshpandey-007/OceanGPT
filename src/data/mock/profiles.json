@@ -1,0 +1,41 @@
+{
+  "profiles": [
+    {
+      "id": "p7901001_045",
+      "floatId": "f7901001",
+      "cycle": 45,
+      "timestamp": "2025-03-18T06:00:00Z",
+      "lat": 12.1,
+      "lon": 75.3,
+      "stats": {"meanTemp": 24.8, "meanSalinity": 35.1},
+      "measurements": [
+        {"depth": 0, "temperature": 28.1, "salinity": 35.2},
+        {"depth": 10, "temperature": 27.6, "salinity": 35.3},
+        {"depth": 50, "temperature": 25.0, "salinity": 35.1},
+        {"depth": 100, "temperature": 22.0, "salinity": 34.9},
+        {"depth": 200, "temperature": 18.5, "salinity": 34.7},
+        {"depth": 400, "temperature": 12.0, "salinity": 34.6},
+        {"depth": 600, "temperature": 8.0, "salinity": 34.5},
+        {"depth": 800, "temperature": 5.0, "salinity": 34.5}
+      ]
+    },
+    {
+      "id": "p7901002_030",
+      "floatId": "f7901002",
+      "cycle": 30,
+      "timestamp": "2025-03-17T05:30:00Z",
+      "lat": 8.4,
+      "lon": 72.9,
+      "stats": {"meanTemp": 23.1, "meanSalinity": 35.0},
+      "measurements": [
+        {"depth": 0, "temperature": 29.0, "salinity": 35.4},
+        {"depth": 20, "temperature": 27.0, "salinity": 35.2},
+        {"depth": 60, "temperature": 24.0, "salinity": 35.0},
+        {"depth": 120, "temperature": 21.0, "salinity": 34.8},
+        {"depth": 250, "temperature": 17.0, "salinity": 34.7},
+        {"depth": 500, "temperature": 11.0, "salinity": 34.6},
+        {"depth": 750, "temperature": 6.0, "salinity": 34.5}
+      ]
+    }
+  ]
+}

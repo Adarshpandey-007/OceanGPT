@@ -1,0 +1,32 @@
+version: '3.9'
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    container_name: floatchat-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: floatchat
+      POSTGRES_USER: floatchat
+      POSTGRES_PASSWORD: floatchat_dev
+    ports:
+      - '5433:5432'
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U floatchat -d floatchat']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  chroma:
+    image: chromadb/chroma:latest
+    container_name: floatchat-chroma
+    ports:
+      - '8000:8000'
+    volumes:
+      - chroma_data:/chroma/chroma
+    restart: unless-stopped
+
+volumes:
+  db_data:
+  chroma_data:
