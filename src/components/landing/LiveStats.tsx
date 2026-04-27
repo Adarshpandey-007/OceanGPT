@@ -13,13 +13,29 @@ export function LiveStats() {
   ]);
 
   useEffect(() => {
-    setStats([
-      { label: 'Floats Indexed', value: 0, target: 1280 },
-      { label: 'Profiles Cached', value: 0, target: 3421 },
-      { label: 'Avg Resp (ms)', value: 0, target: 120 },
+    // Show hardcoded immediately, then update from DB
+    const fallback = [
+      { label: 'Floats Indexed', value: 0, target: 1151 },
+      { label: 'Profiles Cached', value: 0, target: 6085 },
+      { label: 'Measurements', value: 0, target: 4335500 },
       { label: 'Features Planned', value: 0, target: 42 }
-    ]);
+    ];
+    setStats(fallback);
     setLoading(false);
+
+    // Try to get real counts in background
+    fetch('/api/stats', { signal: AbortSignal.timeout(3000) })
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (!data) return;
+        setStats([
+          { label: 'Floats Indexed', value: 0, target: data.floatsIndexed || 1151 },
+          { label: 'Profiles Cached', value: 0, target: data.profilesCached || 6085 },
+          { label: 'Measurements', value: 0, target: data.totalMeasurements || 4335500 },
+          { label: 'Features Planned', value: 0, target: data.plannedFeatures || 42 }
+        ]);
+      })
+      .catch(() => {}); // silently use fallback
   }, []);
 
   useEffect(() => {

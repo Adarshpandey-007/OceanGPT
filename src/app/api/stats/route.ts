@@ -1,21 +1,35 @@
 import { NextResponse } from 'next/server';
+import { query } from '@/lib/db';
 
-// Temporary in-memory counters (could later read from DB / cache)
-let bootTime = Date.now();
+export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  // Placeholder logic; later can aggregate from Postgres or cache JSON metadata
-  const floatsIndexed = 1280; // derive from discovery cache length in future
-  const profilesCached = 3421; // derive from parsed profile count
-  const plannedFeatures = 42; // roadmap items
-  const avgRespMs = 120; // sample metric
+  try {
+    const [floatRes, profileRes, measurementRes] = await Promise.all([
+      query('SELECT COUNT(*)::int AS count FROM floats'),
+      query('SELECT COUNT(*)::int AS count FROM profiles'),
+      query('SELECT COUNT(*)::int AS count FROM measurements'),
+    ]);
 
-  return NextResponse.json({
-    floatsIndexed,
-    profilesCached,
-    plannedFeatures,
-    avgRespMs,
-    since: bootTime,
-    generatedAt: new Date().toISOString()
-  }, { headers: { 'Cache-Control': 'no-store' } });
+    return NextResponse.json({
+      floatsIndexed: floatRes.rows[0]?.count ?? 0,
+      profilesCached: profileRes.rows[0]?.count ?? 0,
+      totalMeasurements: measurementRes.rows[0]?.count ?? 0,
+      plannedFeatures: 42,
+      avgRespMs: 120,
+      generatedAt: new Date().toISOString()
+    });
+  } catch (err: any) {
+    console.error('GET /api/stats error:', err?.message);
+    // Fallback to hardcoded values if DB is unavailable
+    return NextResponse.json({
+      floatsIndexed: 1151,
+      profilesCached: 6085,
+      totalMeasurements: 4335500,
+      plannedFeatures: 42,
+      avgRespMs: 120,
+      generatedAt: new Date().toISOString(),
+      source: 'fallback'
+    });
+  }
 }
