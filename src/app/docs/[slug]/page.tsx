@@ -26,17 +26,10 @@ export default function DocPage({ params }: { params: Params }) {
   if (!meta || !content) return notFound();
   
   const renderer = new marked.Renderer();
-  renderer.heading = function(rawText: any, level: any) {
-    // Handle both old-style (string, number) and new-style ({text, depth}) signatures
-    let text: string;
-    let lvl: number;
-    if (typeof rawText === 'object' && rawText !== null) {
-      text = String(rawText.text || rawText.raw || rawText);
-      lvl = rawText.depth || level || 1;
-    } else {
-      text = String(rawText);
-      lvl = typeof level === 'number' ? level : 1;
-    }
+  // @ts-ignore — marked v9+ uses single object param {tokens, depth, raw, text}
+  renderer.heading = function(heading: any) {
+    const text = String(heading.text || heading.raw || heading);
+    const lvl = heading.depth || 1;
     const escapedText = text.toLowerCase().replace(/[^\w]+/g, '-');
     return `<h${lvl} id="${escapedText}">${text}</h${lvl}>`;
   };

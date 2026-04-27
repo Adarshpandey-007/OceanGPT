@@ -14,13 +14,13 @@ interface ChatState {
   activeTab: 'map' | 'plot' | 'table' | 'none';
   focusedFloatId?: string | null;
   targetCenter?: { lat: number; lon: number } | null;
-  realProfiles?: {
+  realProfiles: {
     floatId?: string;
     loading: boolean;
     error?: string | null;
     profiles?: RealProfile[];
-    selectedCycle?: number; // primary cycle currently selected
-    selectedCycles?: number[]; // multiple cycles for overlay (includes selectedCycle)
+    selectedCycle?: number;
+    selectedCycles: number[];
   };
   addMessage: (m: Omit<ChatMessage, 'id'>) => void;
   setActiveTab: (t: ChatState['activeTab']) => void;
