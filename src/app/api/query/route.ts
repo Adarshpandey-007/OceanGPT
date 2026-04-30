@@ -33,20 +33,38 @@ export async function POST(request: Request) {
   }
 
   let llmMessage = '';
-  let toolCalls: any[] = [];
+  let toolsUsed: string[] = [];
+  let usedLLM = false;
   
   if (process.env.GEMINI_API_KEY && text.trim()) {
-    const context = `UI Intent: ${intent}\nExtracted Lat: ${lat}\nExtracted Lon: ${lon}`;
+    const context = `UI Intent: ${intent}${lat !== undefined ? `\nExtracted Lat: ${lat}` : ''}${lon !== undefined ? `\nExtracted Lon: ${lon}` : ''}`;
+    
     const response = await generateLLMResponse(text, context);
     llmMessage = response.text;
-    toolCalls = response.toolCalls;
+    usedLLM = true;
+    
+    // Track which tools were used for the UI
+    if (response.usedTools) {
+      toolsUsed = [...new Set(response.toolCalls.map(c => c.name))];
+    }
+    
+    // If Gemini found nearest floats via tool, try to extract for map focus
+    if (intent === 'map' && response.usedTools && !nearest) {
+      const nearestResult = response.toolResults.find(r => r.name === 'get_nearest_floats');
+      if (nearestResult) {
+        const match = nearestResult.result.match(/Float (\S+) at \(([-\d.]+),\s*([-\d.]+)\)/);
+        if (match) {
+          nearest = { 
+            id: match[1], 
+            lat: parseFloat(match[2]), 
+            lon: parseFloat(match[3]), 
+            distanceKm: 0 
+          };
+        }
+      }
+    }
   } else {
     llmMessage = `No API key present. Fallback route: ${intent}`;
-  }
-
-  // Format the response mimicking an MCP coordination step
-  if (toolCalls.length > 0) {
-    llmMessage += `\n\n[MCP Action Requested] AI wants to use tools: ${toolCalls.map(c => c.name).join(', ')}. In a full deployment, this would trigger the Python MCP Server over stdio to execute the SQL/Vector query.`;
   }
 
   return NextResponse.json({ 
@@ -55,8 +73,8 @@ export async function POST(request: Request) {
     lon, 
     nearest, 
     message: llmMessage, 
-    llmUsed: !!process.env.GEMINI_API_KEY, 
-    mcpTools: toolCalls,
+    llmUsed: usedLLM, 
+    toolsUsed,
     relatedIds: { floats: nearest ? [nearest.id] : [], profiles: [] } 
   });
 }

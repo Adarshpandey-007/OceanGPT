@@ -18,6 +18,9 @@ ARGO-DATA/
 # Derived data cache
 data/derived/
 
+# ChromaDB vector store (regenerate with seed_chromadb.py)
+chroma_data/
+
 # OS files
 .DS_Store
 Thumbs.db
