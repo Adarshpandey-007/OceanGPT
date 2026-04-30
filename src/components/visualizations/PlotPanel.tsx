@@ -27,16 +27,10 @@ export function PlotPanel() {
 
   useEffect(() => {
     if (mode === 'mock') {
-      const controller = new AbortController();
-
-      fetch('/api/profiles', { signal: controller.signal })
-        .then(r => {
-          if (!r.ok) {
-            throw new Error(`Failed to load mock profile (${r.status})`);
-          }
-          return r.json();
-        })
-        .then(data => {
+      // Use local mock data that includes measurements arrays
+      import('../../data/mock/profiles.json')
+        .then((mod) => {
+          const data = mod.default || mod;
           if (data.profiles && data.profiles.length > 0) {
             setProfile(data.profiles[0]);
             setMockError(null);
@@ -46,12 +40,9 @@ export function PlotPanel() {
           }
         })
         .catch((e: any) => {
-          if (e?.name === 'AbortError') return;
           setProfile(null);
           setMockError('Could not load mock profile data.');
         });
-
-      return () => controller.abort();
     }
   }, [mode]);
 
@@ -123,6 +114,19 @@ export function PlotPanel() {
     </div>
   );
 
+  if (!activeProfile.measurements || activeProfile.measurements.length === 0) {
+    return (
+      <div className="p-4 text-sm text-floatchat-ink/60 space-y-3">
+        <div>Profile loaded but no measurement data available for plotting.</div>
+        <div className="flex items-center gap-2">
+          <input className="border rounded px-2 py-1 text-xs" value={floatIdInput} onChange={e => setFloatIdInput(e.target.value)} placeholder="Float ID" />
+          <button onClick={() => { setMode('real'); loadReal(); }} className="text-xs bg-blue-600 text-white px-2 py-1 rounded">Load Real</button>
+          <button onClick={() => { setMode('mock'); }} className="text-xs bg-slate-500 text-white px-2 py-1 rounded">Mock</button>
+        </div>
+      </div>
+    );
+  }
+
   const depths = activeProfile.measurements.map(m => m.depth);
   const temps = activeProfile.measurements.map(m => m.temperature ?? null);
   const sals = activeProfile.measurements.map(m => m.salinity ?? null);
@@ -158,9 +162,8 @@ export function PlotPanel() {
         cycle={activeProfile.cycle}
       />
       <CycleOverlaySelector />
-      {(Plot as any)(
-        {
-          data: [
+      <Plot
+          data={[
             // Main profile
             {
               x: temps,
@@ -215,8 +218,8 @@ export function PlotPanel() {
                 }
               ];
             }) : [])
-          ],
-          layout: {
+          ]}
+          layout={{
             autosize: true,
             paper_bgcolor: 'rgba(0,0,0,0)',
             plot_bgcolor: 'rgba(0,0,0,0)',
@@ -226,11 +229,10 @@ export function PlotPanel() {
             xaxis2: { title: 'Salinity (PSU)', domain: [0.52, 1], anchor: 'y' },
             showlegend: true,
             legend: { orientation: 'h', y: -0.2 }
-          },
-            style: { width: '100%', height: '100%' },
-            config: { displayModeBar: false }
-        }
-      )}
+          }}
+          style={{ width: '100%', height: '100%' }}
+          config={{ displayModeBar: false }}
+        />
     </div>
   );
 }

@@ -9,6 +9,18 @@ import { Skeleton } from '../ui/Skeleton';
 
 interface FloatSummary { id: string; lat: number; lon: number; lastObs: string; }
 
+// Fix Leaflet default marker icon paths (they reference local files that don't exist)
+const DefaultIcon = L.icon({
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41],
+});
+L.Marker.prototype.options.icon = DefaultIcon;
+
 // Dynamically import react-leaflet components to avoid SSR issues
 const MapContainer = dynamic(() => import('react-leaflet').then(m => m.MapContainer), { 
   ssr: false,

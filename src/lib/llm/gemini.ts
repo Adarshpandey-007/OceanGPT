@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-const MODEL = 'gemini-1.5-flash';
+const MODEL = 'gemini-2.5-flash';
 
 function getClient() {
   const apiKey = process.env.GEMINI_API_KEY;
@@ -72,11 +72,18 @@ export async function generateLLMResponse(userPrompt: string, context?: string):
     const result = await model.generateContent(fullPrompt);
     const response = result.response;
     
-    const calls = response.functionCalls();
+    const calls = response.functionCalls?.() || [];
+    
+    let text = '';
+    try {
+      text = response.text() || '';
+    } catch {
+      // text() throws when response only contains function calls
+    }
     
     return {
-      text: response.text() || "I need to check the database.",
-      toolCalls: calls ? calls.map(c => ({ name: c.name, args: c.args })) : []
+      text: text || (calls.length > 0 ? "I need to check the database." : "No response generated."),
+      toolCalls: calls.map(c => ({ name: c.name, args: c.args }))
     };
   } catch (err: any) {
     console.error('Gemini invocation failed', err?.message || err);
