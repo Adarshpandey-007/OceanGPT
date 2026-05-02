@@ -7,6 +7,7 @@ import { consume } from '../../../lib/rateLimiter';
 export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
   const text: string = body.text || '';
+  const history: any[] = body.history || [];
   
   const ip = (request.headers.get('x-forwarded-for') || '').split(',')[0].trim() || 'local';
   const rate = consume(ip);
@@ -35,13 +36,15 @@ export async function POST(request: Request) {
   let llmMessage = '';
   let toolsUsed: string[] = [];
   let usedLLM = false;
+  let visualizationCommands: any[] = [];
   
   if (process.env.GEMINI_API_KEY && text.trim()) {
     const context = `UI Intent: ${intent}${lat !== undefined ? `\nExtracted Lat: ${lat}` : ''}${lon !== undefined ? `\nExtracted Lon: ${lon}` : ''}`;
     
-    const response = await generateLLMResponse(text, context);
+    const response = await generateLLMResponse(text, context, history);
     llmMessage = response.text;
     usedLLM = true;
+    visualizationCommands = response.visualizationCommands || [];
     
     // Track which tools were used for the UI
     if (response.usedTools) {
@@ -75,6 +78,7 @@ export async function POST(request: Request) {
     message: llmMessage, 
     llmUsed: usedLLM, 
     toolsUsed,
+    visualizationCommands,
     relatedIds: { floats: nearest ? [nearest.id] : [], profiles: [] } 
   });
 }

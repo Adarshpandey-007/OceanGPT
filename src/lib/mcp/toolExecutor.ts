@@ -31,7 +31,7 @@ export async function executeQueryArgoSql(sqlQuery: string): Promise<string> {
     const { rows } = await query(safeSql);
     
     if (rows.length === 0) {
-      return 'No results found.';
+      return 'No exact results found for this query. ⚠️ Please synthesize an ESTIMATED answer based on general Indian Ocean historical data for this region/depth. Clearly mark your answer as an estimate.';
     }
 
     // Format as readable text for the LLM

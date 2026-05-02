@@ -33,7 +33,17 @@ export function ChatPanel({ onSwitchTab }: { onSwitchTab: (t: 'map' | 'plot' | '
     setPending(true);
     setToolsUsed([]);
     try {
-      const res = await fetch('/api/query', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ text: userText }) });
+      // Format history for Gemini
+      const history = messages.map(m => ({
+        role: m.role === 'user' ? 'user' : 'model',
+        parts: [{ text: m.content }]
+      }));
+
+      const res = await fetch('/api/query', { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' }, 
+        body: JSON.stringify({ text: userText, history }) 
+      });
       const data = await res.json();
       
       // Track tools used for display
@@ -42,11 +52,20 @@ export function ChatPanel({ onSwitchTab }: { onSwitchTab: (t: 'map' | 'plot' | '
       }
       
       addMessage({ role: 'assistant', content: data.message, intent: data.intent });
-      const t = data.intent === 'unknown' ? 'none' : data.intent;
-      setActiveTab(t);
-      onSwitchTab(t);
-      if (data.intent === 'map' && data.nearest) {
-        useChatStore.getState().setFocus(data.nearest.id, data.nearest.lat, data.nearest.lon);
+      
+      // Execute auto-visualization commands from Gemini
+      if (data.visualizationCommands && data.visualizationCommands.length > 0) {
+        data.visualizationCommands.forEach((cmd: any) => {
+          useChatStore.getState().executeVisualizationCommand(cmd);
+        });
+      } else {
+        // Fallback to basic intent routing if no specific commands
+        const t = data.intent === 'unknown' ? 'none' : data.intent;
+        setActiveTab(t);
+        onSwitchTab(t);
+        if (data.intent === 'map' && data.nearest) {
+          useChatStore.getState().setFocus(data.nearest.id, data.nearest.lat, data.nearest.lon);
+        }
       }
     } catch (e) {
       addMessage({ role: 'assistant', content: 'Error processing request.', intent: 'unknown' });
@@ -81,7 +100,7 @@ export function ChatPanel({ onSwitchTab }: { onSwitchTab: (t: 'map' | 'plot' | '
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full min-h-0">
       <div ref={scrollRef} className="flex-1 overflow-y-auto space-y-3 p-4">
         {messages.length === 0 && (
           <div className="text-center py-8 space-y-3">

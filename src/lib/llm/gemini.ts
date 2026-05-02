@@ -16,17 +16,22 @@ const SchemaType = {
   OBJECT: 'OBJECT' as const,
 };
 
-const SYSTEM_PROMPT = `You are FloatChat, an expert oceanographic assistant helping users explore ARGO float data from the Indian Ocean.
+const SYSTEM_PROMPT = `You are FloatChat, an expert "Ocean Advisor" helping government officials, policymakers, and coastal planners make sustainable, nature-friendly decisions based on ARGO float data.
 
 You have access to a PostgreSQL database with the following schema:
-- floats(id, wmo_id, launch_date, last_observation, geom) — 1,151 ARGO floats
-- profiles(id, float_id, cycle_number, timestamp, latitude, longitude, min_depth, max_depth, qc_status) — 6,085 profiles
-- measurements(id, profile_id, depth, temperature, salinity) — 4.3M measurements
+- floats(id, wmo_id, launch_date, last_observation, geom)
+- profiles(id, float_id, cycle_number, timestamp, latitude, longitude, min_depth, max_depth, qc_status)
+- measurements(id, profile_id, depth, temperature, salinity)
 - profile_stats(profile_id, mean_temp, mean_salinity, surface_temp, mixed_layer_depth)
 
-Use the provided tools to answer questions with real data. Be specific and cite numbers.
-When writing SQL, use the exact column names from the schema above.
-Always provide a clear, well-formatted answer after receiving tool results.`;
+CORE BEHAVIORS:
+1. Use Layman Terms: Explain scientific concepts simply. Instead of just giving numbers, explain what they mean for the ecosystem (e.g., coral reefs, fish).
+2. Human Perspective: Always consider the social and economic impact on local communities (e.g., fishermen, tourism) alongside the environmental data.
+3. Actionable Insights: If evaluating a project, provide a clear "Finding -> Impact -> Recommendation" structure.
+4. Auto-Control UI: Use the 'control_visualization' tool proactively. If a user asks about a location, center the map there. If they ask about salinity, switch to the plot tab and load a relevant profile.
+5. Missing Data Handling: If a database query returns no results, synthesize an estimated answer based on historical/regional knowledge, but clearly state "⚠️ Estimated based on regional patterns".
+
+Always answer clearly, using markdown formatting for readability.`;
 
 const queryArgoSqlDeclaration = {
   name: 'query_argo_sql',
@@ -67,13 +72,30 @@ const getNearestFloatsDeclaration = {
   },
 };
 
-const toolDeclarations = [queryArgoSqlDeclaration, searchArgoVectorDeclaration, getNearestFloatsDeclaration];
+const controlVisualizationDeclaration = {
+  name: 'control_visualization',
+  description: 'Auto-control the user interface. Emit this tool call to change the active tab, center the map, or load specific float data into the plot/table.',
+  parameters: {
+    type: SchemaType.OBJECT,
+    properties: {
+      action: { type: SchemaType.STRING, description: 'The action to perform: "switch_tab", "center_map", or "load_profile"' },
+      tab: { type: SchemaType.STRING, description: 'If action is "switch_tab", which tab to switch to ("map", "plot", "table")' },
+      lat: { type: SchemaType.NUMBER, description: 'If action is "center_map", the latitude' },
+      lon: { type: SchemaType.NUMBER, description: 'If action is "center_map", the longitude' },
+      float_id: { type: SchemaType.STRING, description: 'If action is "load_profile", the float WMO ID to load' },
+    },
+    required: ['action'],
+  },
+};
+
+const toolDeclarations = [queryArgoSqlDeclaration, searchArgoVectorDeclaration, getNearestFloatsDeclaration, controlVisualizationDeclaration];
 
 export interface LLMResponse {
   text: string;
   toolCalls: ToolCall[];
   toolResults: { name: string; result: string }[];
   usedTools: boolean;
+  visualizationCommands: any[];
 }
 
 /**
@@ -85,9 +107,13 @@ export interface LLMResponse {
  * 3. Send tool results back to Gemini for final synthesis
  * 4. Return the final synthesized answer
  */
-export async function generateLLMResponse(userPrompt: string, context?: string): Promise<LLMResponse> {
+export async function generateLLMResponse(
+  userPrompt: string, 
+  context?: string, 
+  history: {role: string, parts: {text: string}[]}[] = []
+): Promise<LLMResponse> {
   const client = getClient();
-  if (!client) return { text: "LLM API Key missing.", toolCalls: [], toolResults: [], usedTools: false };
+  if (!client) return { text: "LLM API Key missing.", toolCalls: [], toolResults: [], usedTools: false, visualizationCommands: [] };
   
   try {
     const model = client.getGenerativeModel({ 
@@ -98,13 +124,14 @@ export async function generateLLMResponse(userPrompt: string, context?: string):
       systemInstruction: SYSTEM_PROMPT,
     });
 
-    // Start a chat session for multi-turn tool execution
-    const chat = model.startChat();
+    // Start a chat session for multi-turn tool execution, injecting history
+    const chat = model.startChat({ history });
     
-    // Build initial prompt with context
+    // Build initial prompt with context (time/location)
+    const timeContext = `Current System Time: ${new Date().toISOString()}`;
     const fullPrompt = context 
-      ? `${context}\n\nUser question: ${userPrompt}`
-      : userPrompt;
+      ? `${timeContext}\n${context}\n\nUser question: ${userPrompt}`
+      : `${timeContext}\n\nUser question: ${userPrompt}`;
     
     // First turn: send user prompt
     let result = await chat.sendMessage(fullPrompt);
@@ -146,22 +173,31 @@ export async function generateLLMResponse(userPrompt: string, context?: string):
       response = result.response;
     }
     
-    // Extract final text
+    // Extract visualization commands and text
     let text = '';
+    let visualizationCommands = [];
     try {
       text = response.text() || '';
     } catch {
       // text() throws when response only contains function calls
     }
+
+    // Separate UI control calls from real data tool calls
+    visualizationCommands = allToolCalls
+      .filter(c => c.name === 'control_visualization')
+      .map(c => c.args);
     
+    const dataToolCalls = allToolCalls.filter(c => c.name !== 'control_visualization');
+
     return {
-      text: text || (allToolCalls.length > 0 ? "I retrieved data but couldn't generate a summary." : "No response generated."),
-      toolCalls: allToolCalls,
-      toolResults: allToolResults,
-      usedTools: allToolCalls.length > 0,
+      text: text || (dataToolCalls.length > 0 ? "I retrieved data but couldn't generate a summary." : "No response generated."),
+      toolCalls: dataToolCalls,
+      toolResults: allToolResults.filter(r => r.name !== 'control_visualization'),
+      usedTools: dataToolCalls.length > 0,
+      visualizationCommands,
     };
   } catch (err: any) {
     console.error('Gemini invocation failed', err?.message || err);
-    return { text: `Error connecting to AI service: ${err?.message || 'Unknown error'}`, toolCalls: [], toolResults: [], usedTools: false };
+    return { text: `Error connecting to AI service: ${err?.message || 'Unknown error'}`, toolCalls: [], toolResults: [], usedTools: false, visualizationCommands: [] };
   }
 }

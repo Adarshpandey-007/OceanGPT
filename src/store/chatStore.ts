@@ -30,6 +30,7 @@ interface ChatState {
   selectProfileCycle: (cycle: number) => void;
   toggleCycleOverlay: (cycle: number) => void;
   setRealProfilesError: (err: string) => void;
+  executeVisualizationCommand: (cmd: any) => void;
   reset: () => void;
 }
 
@@ -58,6 +59,23 @@ export const useChatStore = create<ChatState>((set) => ({
           : [...currentSelectedCycles, cycleIndex]
       }
     };
+  }),
+  executeVisualizationCommand: (cmd) => set((state) => {
+    let updates: Partial<ChatState> = {};
+    if (cmd.action === 'switch_tab' && cmd.tab) {
+      if (['map', 'plot', 'table'].includes(cmd.tab)) {
+        updates.activeTab = cmd.tab as 'map' | 'plot' | 'table';
+      }
+    } else if (cmd.action === 'center_map' && cmd.lat !== undefined && cmd.lon !== undefined) {
+      updates.activeTab = 'map';
+      updates.targetCenter = { lat: cmd.lat, lon: cmd.lon };
+    } else if (cmd.action === 'load_profile' && cmd.float_id) {
+      updates.activeTab = 'plot';
+      updates.focusedFloatId = cmd.float_id;
+      // Note: fetching the actual profile data happens in the components
+      // when focusedFloatId changes.
+    }
+    return updates;
   }),
   reset: () => set(() => ({
     messages: [],
