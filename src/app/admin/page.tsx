@@ -2,7 +2,15 @@
 import { useEffect, useState, useMemo } from 'react';
 import AdminStatCard from '@/components/admin/AdminStatCard';
 
-interface HealthResp { status: string; timestamp: string; uptimeSeconds?: number }
+interface HealthResp { 
+  status: string; 
+  timestamp: string; 
+  uptimeSeconds?: number;
+  env?: {
+    hasLLM: boolean;
+    realProfileSource: string;
+  };
+}
 
 interface RealFloatsResp { files: { id: string }[]; count: number; dataDir: string | null; warning?: string | null }
 interface RealProfilesIndex { floats: string[]; total: number; cacheDir: string }
@@ -28,16 +36,15 @@ function useFetch<T>(url: string | null, deps: any[] = []): { data: T | null; lo
 }
 
 export default function AdminDashboardPage() {
-  // Feature / env snapshot (client side: read from injected public env or derive booleans)
-  const hasLLM = typeof process.env.NEXT_PUBLIC_GEMINI_PRESENT !== 'undefined' || !!process.env.GEMINI_API_KEY;
-  const realProfileSource = process.env.NEXT_PUBLIC_REAL_PROFILE_SOURCE || process.env.REAL_PROFILE_SOURCE || 'cache';
-
   const { data: health, loading: healthLoading, error: healthError } = useFetch<HealthResp>('/api/health', []);
   const { data: realFloats, loading: floatsLoading } = useFetch<RealFloatsResp>('/api/real/floats', []);
   const { data: realProfilesIdx, loading: profilesLoading } = useFetch<RealProfilesIndex>('/api/real/profiles', []);
 
   const floatsCount = realFloats?.count ?? 0;
   const profilesCount = realProfilesIdx?.total ?? 0;
+
+  const hasLLM = health?.env?.hasLLM ?? false;
+  const realProfileSource = health?.env?.realProfileSource ?? 'cache';
 
   const statusHealth: 'ok' | 'warn' | 'error' = healthError ? 'error' : (health?.status === 'ok' ? 'ok' : 'warn');
   const statusRealData: 'ok' | 'warn' | 'error' = (floatsCount > 0 || profilesCount > 0) ? 'ok' : 'warn';
@@ -86,6 +93,7 @@ export default function AdminDashboardPage() {
               value={hasLLM ? 'Enabled' : 'Disabled'}
               subtitle={hasLLM ? 'Gemini key detected' : 'No API key'}
               status={hasLLM ? 'ok' : 'warn'}
+              loading={healthLoading}
             />
           </section>
 

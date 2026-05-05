@@ -9,10 +9,12 @@ interface NavLink {
 }
 
 const links: NavLink[] = [
+	{ label: 'Dashboard', href: '/dashboard' },
 	{ label: 'Explore', href: '/app' },
+	{ label: 'Planner', href: '/planner' },
+	{ label: 'Legal', href: '/legal' },
 	{ label: 'Upload', href: '/upload' },
-	{ label: 'Docs', href: '/docs' },
-	{ label: 'About', href: '/about' }
+	{ label: 'Docs', href: '/docs' }
 ];
 
 export function NavigationHeader() {
