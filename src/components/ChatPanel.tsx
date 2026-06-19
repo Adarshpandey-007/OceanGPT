@@ -6,9 +6,11 @@ import { marked } from 'marked';
 
 // Tool display names
 const TOOL_LABELS: Record<string, { label: string; icon: string }> = {
-  'query_argo_sql': { label: 'Queried Database', icon: '🗄️' },
-  'search_argo_vector': { label: 'Semantic Search', icon: '🔍' },
-  'get_nearest_floats': { label: 'Spatial Search', icon: '📍' },
+  'get_ocean_profile': { label: 'Fetching Profile', icon: '🌊' },
+  'search_ocean_area': { label: 'Spatial Search', icon: '📍' },
+  'check_float_health': { label: 'Health Check', icon: '🔋' },
+  'search_erddap': { label: 'Bulk Data Query', icon: '📊' },
+  'system_health_check': { label: 'System Check', icon: '⚙️' },
 };
 
 export function ChatPanel({ onSwitchTab }: { onSwitchTab: (t: 'map' | 'plot' | 'table' | 'none') => void }) {

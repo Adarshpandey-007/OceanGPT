@@ -5,12 +5,12 @@ describe('Documentation presence', () => {
   // __dirname = src/tests ; project root is two levels up
   const root = path.resolve(__dirname, '../..');
   it('api-contract.md contains API Contract heading', () => {
-    const p = path.join(root, 'docs', 'api-contract.md');
+    const p = path.join(root, 'docs', '04_api_reference', 'api-contract.md');
     const txt = fs.readFileSync(p, 'utf-8');
     expect(txt).toMatch(/# API Contract/);
   });
   it('admin-dashboard.md contains Admin Dashboard heading', () => {
-    const p = path.join(root, 'docs', 'admin-dashboard.md');
+    const p = path.join(root, 'docs', '03_user_experience', 'admin-dashboard.md');
     const txt = fs.readFileSync(p, 'utf-8');
     expect(txt).toMatch(/# Admin Dashboard/);
   });

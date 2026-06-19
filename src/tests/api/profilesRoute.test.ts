@@ -1,9 +1,7 @@
 import { NextRequest } from 'next/server';
 import { GET as getProfiles } from '../../app/api/real/profiles/route';
-import path from 'path';
 
-// Mock process.env for test
-const originalEnv = { ...process.env };
+const originalFetch = global.fetch;
 
 function buildRequest(url: string) {
   return new NextRequest(url);
@@ -11,19 +9,43 @@ function buildRequest(url: string) {
 
 describe('/api/real/profiles', () => {
   beforeAll(() => {
-    process.env.PROFILE_CACHE_DIR = path.join(process.cwd(), 'data', 'derived', 'profiles');
-  });
-  afterAll(() => {
-    process.env = originalEnv;
+    // @ts-ignore
+    global.fetch = jest.fn(async (url: string) => {
+      if (url.includes('platform=5900001')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => [
+            {
+              _id: "5900001_1",
+              timestamp: "2026-06-19T12:00:00Z",
+              geolocation: { coordinates: [70.0, 12.0] },
+              data_info: [["temperature", "salinity", "pressure"]],
+              data: [[25.5], [35.2], [10.0]]
+            }
+          ]
+        } as any;
+      }
+      if (url.includes('platform=NOPE9999')) {
+        return {
+          ok: false,
+          status: 404
+        } as any;
+      }
+      return { ok: false, status: 500 } as any;
+    });
   });
 
-  it('lists available floats when no floatId provided', async () => {
+  afterAll(() => {
+    global.fetch = originalFetch;
+  });
+
+  it('returns 400 when no floatId provided', async () => {
     const req = buildRequest('http://localhost/api/real/profiles');
     const res = await getProfiles(req);
+    expect(res.status).toBe(400);
     const json: any = await res.json();
-    expect(json.floats).toBeDefined();
-    expect(Array.isArray(json.floats)).toBe(true);
-    expect(json.total).toBeGreaterThanOrEqual(json.floats.length);
+    expect(json.error).toBe('floatId is required');
   });
 
   it('returns specific float profiles when floatId provided', async () => {
@@ -33,6 +55,9 @@ describe('/api/real/profiles', () => {
     const json: any = await res.json();
     expect(json.floatId).toBe('5900001');
     expect(Array.isArray(json.profiles)).toBe(true);
+    expect(json.profiles[0].cycle).toBe(1);
+    expect(json.profiles[0].latitude).toBe(12.0);
+    expect(json.profiles[0].longitude).toBe(70.0);
   });
 
   it('404s for unknown floatId', async () => {

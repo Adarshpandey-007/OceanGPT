@@ -1,8 +1,30 @@
 /** @jest-environment node */
-import * as gemini from '../lib/llm/gemini';
 import { POST } from '../app/api/query/route';
 
-jest.spyOn(gemini, 'generateLLMResponse').mockImplementation(async () => 'LLM ANSWER MOCK');
+jest.mock('@google/generative-ai', () => {
+  return {
+    GoogleGenerativeAI: jest.fn().mockImplementation(() => {
+      return {
+        getGenerativeModel: jest.fn().mockImplementation(() => {
+          return {
+            startChat: jest.fn().mockImplementation(() => {
+              return {
+                sendMessage: jest.fn().mockImplementation(async () => {
+                  return {
+                    response: {
+                      text: () => 'LLM ANSWER MOCK',
+                      functionCalls: () => []
+                    }
+                  };
+                })
+              };
+            })
+          };
+        })
+      };
+    })
+  };
+});
 
 // Simulate env presence
 process.env.GEMINI_API_KEY = 'test-key';
